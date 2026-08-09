@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meteostanica ESP32: ThingSpeak Graf</title>
+<link rel="manifest" href="manifest.json">
+
+<!-- tieto 2 riadky su kvoli PWA uprave: -->
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<meta name="theme-color" content="#f5f5f5">
+
+<style>
+
+/* =========================================================
+   CUSTOM SETTINGS
+   ========================================================= */
+
+:root {
+    --field1-color: #d62020;
+    --field2-color: #1976d2;
+    --field3-color: #2e7d32;
+    --field4-color: #7b1fa2;
+}
+
+
+/* =========================================================
+   ZÁKLAD
+   ========================================================= */
+
+html,
+body {
+
+    margin: 0;
+
+    width: 100%;
+    height: 100%;
+
+    overflow: hidden;
+
+    background: #ffffff;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    color: #222;
+
+}
+
+
+#app {
+
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+
+    flex-direction: column;
+
+}
+
+
+/* =========================================================
+   OVLÁDACÍ PANEL
+   ========================================================= */
+
+#controls {
+
+    flex: 0 0 auto;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 8px 12px;
+
+    background: #f5f5f5;
+
+    border-bottom:
+        1px solid #d5d5d5;
+
+    box-sizing: border-box;
+
+    flex-wrap: wrap;
+
+}
+
+
+.control-group {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+}
+
+
+.control-group label {
+
+    font-size: 13px;
+
+    color: #444;
+
+}
+
+
+select {
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    font-size: 14px;
+
+    padding: 5px 8px;
+
+    border:
+        1px solid #bbb;
+
+    border-radius: 5px;
+
+    background: #fff;
+
+    color: #222;
+
+    cursor: pointer;
+
+}
+
+
+select:focus {
+
+    outline:
+        2px solid #8ab4f8;
+
+    outline-offset: 1px;
+
+}
+
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+#status {
+
+    margin-left: auto;
+
+    font-size: 12px;
+
+    color: #666;
+
+    white-space: nowrap;
+
+}
+
+
+/* =========================================================
+   GRAF
+   ========================================================= */
+
+#graph {
+
+    flex: 1 1 auto;
+
+    width: 100%;
+
+    min-height: 0;
+
+}
+
+
+/* =========================================================
+   SMARTFÓN
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+    #controls {
+
+        padding: 7px 8px;
+
+        gap: 7px;
+
+    }
+
+
+    .control-group {
+
+        flex: 1 1 auto;
+
+    }
+
+
+    .control-group label {
+
+        font-size: 12px;
+
+    }
+
+
+    select {
+
+        flex: 1 1 auto;
+
+        min-width: 100px;
+
+        font-size: 14px;
+
+        padding: 6px 7px;
+
+    }
+
+
+    #status {
+
+        width: 100%;
+
+        margin-left: 0;
+
+        font-size: 11px;
+
+    }
+
+}
+
+</style>
+</head>
+
+<body>
+<div id="app">
+
+    <!-- =====================================================
+         OVLÁDACÍ PANEL
+         ===================================================== -->
+
+    <div id="controls">
+
+
+        <div class="control-group">
+
+            <label for="fieldSelect">
+                Graf:
+            </label>
+
+            <select id="fieldSelect">
+
+                <option value="1"></option>
+
+                <option value="2"></option>
+
+                <option value="3"></option>
+
+                <option value="4"></option>
+
+            </select>
+
+        </div>
+
+
+        <div class="control-group">
+
+            <label for="rangeSelect">
+                Rozsah:
+            </label>
+
+            <select id="rangeSelect">
+
+                <option value="all">
+                    Všetky dostupné
+                </option>
+
+                <option value="30d">
+                    30 dní
+                </option>
+
+                <option value="10d">
+                    10 dní
+                </option>
+
+                <option value="2d">
+                    2 dni
+                </option>
+
+                <option value="1d">
+                    1 deň
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div id="status">
+            Načítavam...
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         GRAF
+         ===================================================== -->
+
+    <div id="graph"></div>
+
+
+</div>
+
+
+<script>
+
+/* =========================================================
+   CUSTOM SETTINGS
+   =========================================================
+
+   TU STAČÍ MENIŤ NASTAVENIA.
+
+   field1Name = názov FIELD 1
+   field2Name = názov FIELD 2
+   field3Name = názov FIELD 3
+   field4Name = názov FIELD 4
+
+   Ak niektorý FIELD nepoužívaš,
+   môžeš ho nazvať napr. "Nepoužité".
+   ========================================================= */
+
+
+// ThingSpeak Channel ID
+const CHANNEL = 3420616;
+
+// Read API Key.
+// Pri PUBLIC kanáli môže zostať prázdny.
+// Pri PRIVATE kanáli vlož Read API Key.
+const READ_API_KEY = "";
+
+// Názvy FIELDov
+const FIELD_NAMES = {
+    1: "Teplota",
+    2: "Vlhkosť",
+    3: "Systém info",
+    4: "Spínač"
+};
+
+// Jednotky FIELDov.
+// Jednotku môžeš nechať prázdnu "".
+const FIELD_UNITS = {
+    1: "°C",
+    2: "%",
+    3: "",
+    4: "On/Off"
+};
+
+// Farby čiar jednotlivých FIELDov.
+const FIELD_COLORS = {
+    1: "#d62020",
+    2: "#1976d2",
+    3: "#2e7d32",
+    4: "#7b1fa2"
+};
+
+// Automatický refresh.
+// 150000 ms = 2,5 minúty.
+const REFRESH_INTERVAL = 150000;
+
+// Maximum záznamov.
+// ThingSpeak API umožňuje max. 8000.
+const MAX_RESULTS = 8000;
+
+
+/* =========================================================
+   DOM ELEMENTS
+   ========================================================= */
+
+const fieldSelect =
+    document.getElementById(
+        "fieldSelect"
+    );
+
+
+const rangeSelect =
+    document.getElementById(
+        "rangeSelect"
+    );
+
+
+const statusElement =
+    document.getElementById(
+        "status"
+    );
+
+
+const graphElement =
+    document.getElementById(
+        "graph"
+    );
+
+
+/* =========================================================
+   LOCAL STORAGE
+   ========================================================= */
+
+const STORAGE_FIELD =
+    "thingspeak_graph_field_" +
+    CHANNEL;
+
+
+const STORAGE_RANGE =
+    "thingspeak_graph_range_" +
+    CHANNEL;
+
+
+/* =========================================================
+   DÁTOVÁ PAMÄŤ
+   ========================================================= */
+
+let allFeeds = [];
+
+
+/* =========================================================
+   NASTAVENIE NÁZVOV V DROPDOWNE
+   ========================================================= */
+
+function setupFieldNames() {
+
+    for (
+        let field = 1;
+        field <= 4;
+        field++
+    ) {
+
+        const name =
+            FIELD_NAMES[field] ||
+            "FIELD " + field;
+
+
+        const option =
+            fieldSelect.querySelector(
+                'option[value="' +
+                field +
+                '"]'
+            );
+
+
+        if (option) {
+
+            option.textContent =
+                name;
+
+        }
+
+    }
+
+}
+
+
+/* =========================================================
+   ZÍSKANIE NÁZVU FIELD
+   ========================================================= */
+
+function getFieldName(fieldNumber) {
+
+    return (
+        FIELD_NAMES[fieldNumber] ||
+        "FIELD " + fieldNumber
+    );
+
+}
+
+
+/* =========================================================
+   ZÍSKANIE JEDNOTKY
+   ========================================================= */
+
+function getFieldUnit(fieldNumber) {
+
+    return (
+        FIELD_UNITS[fieldNumber] ||
+        ""
+    );
+
+}
+
+
+/* =========================================================
+   NAČÍTANIE NASTAVENIA
+   ========================================================= */
+
+function loadSettings() {
+
+    const urlParams =
+        new URLSearchParams(
+            window.location.search
+        );
+
+
+    /* -------------------------
+       FIELD
+       ------------------------- */
+
+    const urlField =
+        urlParams.get("field");
+
+
+    if (
+        urlField &&
+        ["1", "2", "3", "4"]
+            .includes(urlField)
+    ) {
+
+        fieldSelect.value =
+            urlField;
+
+    }
+    else {
+
+        const savedField =
+            localStorage.getItem(
+                STORAGE_FIELD
+            );
+
+
+        if (
+            savedField &&
+            ["1", "2", "3", "4"]
+                .includes(savedField)
+        ) {
+
+            fieldSelect.value =
+                savedField;
+
+        }
+
+    }
+
+
+    /* -------------------------
+       ROZSAH
+       ------------------------- */
+
+    const urlRange =
+        urlParams.get("range");
+
+
+    if (
+        urlRange &&
+        [
+            "all",
+            "30d",
+            "10d",
+            "2d",
+            "1d"
+        ].includes(urlRange)
+    ) {
+
+        rangeSelect.value =
+            urlRange;
+
+    }
+    else {
+
+        const savedRange =
+            localStorage.getItem(
+                STORAGE_RANGE
+            );
+
+
+        if (
+            savedRange &&
+            [
+                "all",
+                "30d",
+                "10d",
+                "2d",
+                "1d"
+            ].includes(savedRange)
+        ) {
+
+            rangeSelect.value =
+                savedRange;
+
+        }
+
+    }
+
+}
+
+
+/* =========================================================
+   ULOŽENIE NASTAVENIA
+   ========================================================= */
+
+function saveSettings() {
+
+    localStorage.setItem(
+
+        STORAGE_FIELD,
+
+        fieldSelect.value
+
+    );
+
+
+    localStorage.setItem(
+
+        STORAGE_RANGE,
+
+        rangeSelect.value
+
+    );
+
+}
+
+
+/* =========================================================
+   API URL
+   ========================================================= */
+
+function buildUrl() {
+
+    let url =
+
+        "https://api.thingspeak.com/channels/" +
+
+        CHANNEL +
+
+        "/feeds.json?results=" +
+
+        MAX_RESULTS;
+
+
+    if (
+        rangeSelect.value === "30d"
+    ) {
+
+        url += "&days=30";
+
+    }
+
+    else if (
+        rangeSelect.value === "10d"
+    ) {
+
+        url += "&days=10";
+
+    }
+
+    else if (
+        rangeSelect.value === "2d"
+    ) {
+
+        url += "&days=2";
+
+    }
+
+    else if (
+        rangeSelect.value === "1d"
+    ) {
+
+        url += "&days=1";
+
+    }
+
+
+    if (
+        READ_API_KEY !== ""
+    ) {
+
+        url +=
+
+            "&api_key=" +
+
+            encodeURIComponent(
+                READ_API_KEY
+            );
+
+    }
+
+
+    return url;
+
+}
+
+
+/* =========================================================
+   NÁZOV ROZSAHU
+   ========================================================= */
+
+function getRangeName() {
+
+    switch (
+        rangeSelect.value
+    ) {
+
+        case "30d":
+            return "30 dní";
+
+        case "10d":
+            return "10 dní";
+
+        case "2d":
+            return "2 dni";
+
+        case "1d":
+            return "1 deň";
+
+        default:
+            return "všetky dostupné";
+
+    }
+
+}
+
+
+/* =========================================================
+   DÁTA PRE VYBRANÝ FIELD
+   ========================================================= */
+
+function getFieldData(
+    fieldNumber
+) {
+
+    const x = [];
+
+    const y = [];
+
+
+    const fieldName =
+        "field" + fieldNumber;
+
+
+    allFeeds.forEach(
+        row => {
+
+            const value =
+                row[fieldName];
+
+
+            if (
+
+                value !== null &&
+
+                value !== undefined &&
+
+                value !== ""
+
+            ) {
+
+                const numberValue =
+                    Number(value);
+
+
+                if (
+                    !Number.isNaN(
+                        numberValue
+                    )
+                ) {
+
+                    x.push(
+
+                        new Date(
+                            row.created_at
+                        )
+
+                    );
+
+
+                    y.push(
+                        numberValue
+                    );
+
+                }
+
+            }
+
+        }
+    );
+
+
+    return {
+        x: x,
+        y: y
+    };
+
+}
+
+
+/* =========================================================
+   TITULOK
+   ========================================================= */
+
+function getTitleSettings() {
+
+    const isMobile =
+        window.innerWidth <= 600;
+
+
+    if (isMobile) {
+
+        return {
+
+            x: 0.02, //odsadenie titulku grafu zlava
+
+            xanchor: "left"
+
+        };
+
+    }
+
+
+    return {
+
+        x: 0.5,
+
+        xanchor: "center"
+
+    };
+
+}
+
+
+/* =========================================================
+   VYKRESLENIE
+   ========================================================= */
+
+function renderGraph() {
+
+    const selectedField =
+        Number(
+            fieldSelect.value
+        );
+
+
+    const data =
+        getFieldData(
+            selectedField
+        );
+
+
+    const fieldName =
+        getFieldName(
+            selectedField
+        );
+
+
+    const fieldUnit =
+        getFieldUnit(
+            selectedField
+        );
+
+
+    const color =
+        FIELD_COLORS[
+            selectedField
+        ] ||
+        "#d62020";
+
+
+    const titleSettings =
+        getTitleSettings();
+
+
+    /* =====================================================
+       Y AXIS TITLE
+       ===================================================== */
+
+    let yAxisTitle =
+        fieldName;
+
+
+    if (fieldUnit !== "") {
+
+        yAxisTitle +=
+            " [" +
+            fieldUnit +
+            "]";
+
+    }
+
+
+    /* =====================================================
+       HOVER
+       ===================================================== */
+
+    let hoverTemplate =
+
+        "<b>%{y}";
+
+
+    if (fieldUnit !== "") {
+
+        hoverTemplate +=
+            " " + fieldUnit;
+
+    }
+
+
+    hoverTemplate +=
+
+        "</b><br>" +
+
+        "%{x}" +
+
+        "<extra></extra>";
+
+
+    /* =====================================================
+       GRAF
+       ===================================================== */
+
+    Plotly.react(
+
+        graphElement,
+
+        [
+
+            {
+
+                type:
+                    "scattergl",
+
+
+                mode:
+                    "lines+markers",
+
+
+                x:
+                    data.x,
+
+
+                y:
+                    data.y,
+
+
+                line: {
+
+                    color:
+                        color,
+
+                    width:
+                        1.3
+
+                },
+
+
+                marker: {
+
+                    color:
+                        color,
+
+                    size:
+                        4
+
+                },
+
+
+                hovertemplate:
+                    hoverTemplate
+
+            }
+
+        ],
+
+
+        {
+
+            title: {
+
+                text:
+                    "ThingSpeak – " +
+                    fieldName,
+
+                font: {
+
+                    size: 18
+
+                },
+
+                x:
+                    titleSettings.x,
+
+                xanchor:
+                    titleSettings.xanchor
+
+            },
+
+
+            margin: {
+
+                l: 65,
+
+                r: 20,
+
+                t: 50,
+
+                b: 65
+
+            },
+
+
+            hovermode:
+                "x unified",
+
+
+            xaxis: {
+
+                title:
+                    "Čas",
+
+                showgrid:
+                    true,
+
+                gridcolor:
+                    "#e5e5e5",
+
+                rangeslider: {
+
+                    visible:
+                        true
+
+                },
+
+                automargin:
+                    true
+
+            },
+
+
+            yaxis: {
+
+                title:
+                    yAxisTitle,
+
+                showgrid:
+                    true,
+
+                gridcolor:
+                    "#e5e5e5",
+
+                automargin:
+                    true
+
+            },
+
+
+            plot_bgcolor:
+                "#ffffff",
+
+
+            paper_bgcolor:
+                "#ffffff",
+
+
+            hoverlabel: {
+
+                bgcolor:
+                    "#ffffff",
+
+                font: {
+
+                    color:
+                        "#222"
+
+                }
+
+            }
+
+        },
+
+
+        {
+
+            responsive:
+                true,
+
+            scrollZoom:
+                true,
+
+            displaylogo:
+                false,
+
+            displayModeBar:
+                true,
+
+
+            modeBarButtonsToRemove:
+
+                [
+
+                    "lasso2d",
+
+                    "select2d"
+
+                ]
+
+        }
+
+    );
+
+
+    /* =====================================================
+       STATUS
+       ===================================================== */
+
+    statusElement.textContent =
+
+        fieldName +
+
+        " | " +
+
+        getRangeName() +
+
+        " | " +
+
+        data.y.length +
+
+        " bodov";
+
+}
+
+
+/* =========================================================
+   NAČÍTANIE THINGSPEAK
+   ========================================================= */
+
+async function loadData() {
+
+    statusElement.textContent =
+        "Načítavam dáta...";
+
+
+    try {
+
+        const url =
+            buildUrl();
+
+
+        const response =
+            await fetch(
+
+                url,
+
+                {
+                    cache:
+                        "no-store"
+                }
+
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+
+                "HTTP chyba " +
+
+                response.status
+
+            );
+
+        }
+
+
+        const json =
+            await response.json();
+
+
+        if (
+
+            !json.feeds ||
+
+            !Array.isArray(
+                json.feeds
+            )
+
+        ) {
+
+            throw new Error(
+
+                "ThingSpeak nevrátil platné dáta."
+
+            );
+
+        }
+
+
+        /*
+           Všetky FIELDy máme teraz
+           v pamäti naraz.
+        */
+
+        allFeeds =
+            json.feeds;
+
+
+        renderGraph();
+
+    }
+
+
+    catch (error) {
+
+        console.error(
+            error
+        );
+
+
+        statusElement.textContent =
+
+            "Chyba: " +
+
+            error.message;
+
+    }
+
+}
+
+
+/* =========================================================
+   ZMENA FIELD
+   ========================================================= */
+
+fieldSelect.addEventListener(
+
+    "change",
+
+    function() {
+
+        saveSettings();
+
+        /*
+           Žiadny nový HTTP request.
+        */
+
+        renderGraph();
+
+    }
+
+);
+
+
+/* =========================================================
+   ZMENA ROZSAHU
+   ========================================================= */
+
+rangeSelect.addEventListener(
+
+    "change",
+
+    function() {
+
+        saveSettings();
+
+        /*
+           Nový rozsah = nový request.
+        */
+
+        loadData();
+
+    }
+
+);
+
+
+/* =========================================================
+   RESIZE
+   ========================================================= */
+
+let resizeTimer = null;
+
+
+window.addEventListener(
+
+    "resize",
+
+    function() {
+
+        clearTimeout(
+            resizeTimer
+        );
+
+
+        resizeTimer =
+            setTimeout(
+
+                function() {
+
+                    if (
+                        graphElement.data
+                    ) {
+
+                        const settings =
+                            getTitleSettings();
+
+
+                        Plotly.relayout(
+
+                            graphElement,
+
+                            {
+
+                                "title.x":
+                                    settings.x,
+
+                                "title.xanchor":
+                                    settings.xanchor
+
+                            }
+
+                        );
+
+                    }
+
+                },
+
+                100
+
+            );
+
+    }
+
+);
+
+
+/* =========================================================
+   ŠTART
+   ========================================================= */
+
+setupFieldNames();
+
+loadSettings();
+
+loadData();
+
+
+/* =========================================================
+   AUTOMATICKÝ REFRESH
+   ========================================================= */
+
+setInterval(
+
+    loadData,
+
+    REFRESH_INTERVAL
+
+);
+
+if ("serviceWorker" in navigator) {
+
+    window.addEventListener(
+        "load",
+        () => {
+
+            navigator.serviceWorker.register(
+                "./sw.js"
+            );
+
+        }
+    );
+
+}
+</script>
+
+</body>
+</html>
+
