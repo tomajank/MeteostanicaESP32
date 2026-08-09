@@ -891,6 +891,7 @@ let allFeeds = [];
 
 let channelSettings = {};
 
+let feedsRequestId = 0;
 
 /* =========================================================
    URL
@@ -1885,24 +1886,22 @@ function renderGraph() {
 
 async function loadFeeds() {
 
+    const requestId = ++feedsRequestId;
+
     statusElement.textContent =
         "Načítavam dáta...";
 
-
     try {
+
+        loadSelectionSettings();
 
         const response =
             await fetch(
-
                 buildFeedsUrl(),
-
                 {
-                    cache:
-                        "no-store"
+                    cache: "no-store"
                 }
-
             );
-
 
         if (!response.ok) {
 
@@ -1913,10 +1912,17 @@ async function loadFeeds() {
 
         }
 
-
         const json =
             await response.json();
 
+        /*
+         * Ak medzitým začal novší request,
+         * tento výsledok už nepoužijeme.
+         */
+
+        if (requestId !== feedsRequestId) {
+            return;
+        }
 
         if (
             !json.channel ||
@@ -1929,11 +1935,8 @@ async function loadFeeds() {
 
         }
 
-
         if (
-            !Array.isArray(
-                json.feeds
-            )
+            !Array.isArray(json.feeds)
         ) {
 
             throw new Error(
@@ -1942,80 +1945,36 @@ async function loadFeeds() {
 
         }
 
-
-        /*
-         * Channel information
-         */
-
         channelInfo =
             json.channel;
 
-
-        /*
-         * Local settings for this channel
-         */
-
         loadChannelSettings();
-
-
-        /*
-         * Measurements
-         */
 
         allFeeds =
             json.feeds;
 
-
-        /*
-         * FIELD dropdown
-         */
-
         createFieldOptions();
-
-
-        /*
-         * URL has priority over localStorage.
-         */
 
         loadSelectionSettings();
 
-
-        /*
-         * Make sure selected FIELD exists.
-         */
-
-        if (
-            !fieldSelect.value
-        ) {
-
-            fieldSelect.value =
-                "1";
-
-        }
-
-
-        /*
-         * Synchronize URL.
-         */
-
-        saveSelectionSettings();
-
-
-        /*
-         * Draw graph.
-         */
+        updateUrl();
 
         renderGraph();
 
     }
 
-
     catch (error) {
 
-        console.error(
-            error
-        );
+        /*
+         * Chybu starého requestu ignorujeme,
+         * ak už existuje novší request.
+         */
 
+        if (requestId !== feedsRequestId) {
+            return;
+        }
+
+        console.error(error);
 
         statusElement.textContent =
             "Chyba: " +
@@ -2024,7 +1983,6 @@ async function loadFeeds() {
     }
 
 }
-
 
 /* =========================================================
    SETUP SCREEN
@@ -2682,19 +2640,25 @@ async function loadApplication() {
 
     }
 
-
     /*
      * Channel máme.
      */
 
     hideSetup();
 
+    /*
+     * Najprv načítame uložený FIELD a RANGE.
+     * Až potom sa vytvorí URL pre ThingSpeak.
+     *
+     * Inak by prvý request išiel s defaultným
+     * rozsahom "all".
+     */
+    loadSelectionSettings();
 
     statusElement.textContent =
         "Načítavam Channel " +
         channelId +
         "...";
-
 
     /*
      * Načítanie Channel informácií
