@@ -1881,10 +1881,6 @@ function renderGraph() {
 
 
 /* =========================================================
-   LOAD FEEDS
-   ========================================================= */
-
-/* =========================================================
    THINGSPEAK XHR
    Kompatibilné aj so staršími Androidmi
    ========================================================= */
@@ -1905,14 +1901,12 @@ function loadFeedsXHR() {
 
 
         /*
-         * Cache vypneme cez HTTP hlavičku,
-         * ak ju prehliadač podporuje.
+         * Žiadne vlastné HTTP hlavičky!
+         *
+         * Je to dôležité kvôli CORS.
+         * Vlastná hlavička by vyvolala preflight
+         * OPTIONS request.
          */
-
-        xhr.setRequestHeader(
-            "Cache-Control",
-            "no-cache"
-        );
 
 
         xhr.onreadystatechange =
@@ -1923,13 +1917,8 @@ function loadFeedsXHR() {
                 ) {
 
                     return;
-
                 }
 
-
-                /*
-                 * HTTP 2xx = úspech
-                 */
 
                 if (
                     xhr.status >= 200 &&
@@ -1947,7 +1936,6 @@ function loadFeedsXHR() {
                         resolve(json);
 
                     }
-
                     catch (error) {
 
                         reject(
@@ -1959,7 +1947,6 @@ function loadFeedsXHR() {
                     }
 
                 }
-
                 else {
 
                     reject(
@@ -1974,10 +1961,6 @@ function loadFeedsXHR() {
             };
 
 
-        /*
-         * Chyba sieťového spojenia.
-         */
-
         xhr.onerror =
             function() {
 
@@ -1990,10 +1973,6 @@ function loadFeedsXHR() {
             };
 
 
-        /*
-         * Timeout.
-         */
-
         xhr.ontimeout =
             function() {
 
@@ -2005,10 +1984,6 @@ function loadFeedsXHR() {
 
             };
 
-
-        /*
-         * 30 sekúnd.
-         */
 
         xhr.timeout =
             30000;
