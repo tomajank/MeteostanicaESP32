@@ -499,7 +499,8 @@
            ------------------------------------------------- */
 
         var url =
-            "https://thingspeak.mathworks.com/channels/" +
+            /* "https://thingspeak.mathworks.com/channels/" + //spusti invalid certificate error */
+            "http://api.thingspeak.com/channels/" + /* jedina non-https url ktora mi funguje */
             id +
             "/charts/" +
             f +
