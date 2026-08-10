@@ -1,8 +1,10 @@
-const CACHE_NAME = "thingspeak-graph-v1";
+const CACHE_NAME = "thingspeak-graph-v2"; // treba po zmene manifest.json, sw.js, app.html alebo app.css aktualizovat kvoli cache. Zmenou thingspeak-graph-v1 -> v2 sa pri aktivácii automaticky odstráni thingspeak-graph-v1
 
-const APP_FILES = [
+const APP_FILES = [ //obsahuje vsetky subory potrebne pre beh PWA apky
     "./",
     "./index.html",
+    "./app.html",
+    "./app.css",
     "./manifest.json",
     "./icon.svg",
     "./icon-180.png",
@@ -19,7 +21,13 @@ self.addEventListener("install", event => {
     event.waitUntil(
 
         caches.open(CACHE_NAME)
-            .then(cache => cache.addAll(APP_FILES))
+            .then(cache => {
+
+                return cache.addAll(
+                    APP_FILES
+                );
+
+            })
 
     );
 
@@ -65,15 +73,16 @@ self.addEventListener("activate", event => {
 
 self.addEventListener("fetch", event => {
 
-    const request = event.request;
+    const request =
+        event.request;
 
 
     /*
-       ThingSpeak API necháme ísť priamo
-       na internet.
-
-       Nechceme cacheovať namerané dáta.
-    */
+     * ThingSpeak API necháme ísť
+     * priamo na internet.
+     *
+     * Namerané dáta nechceme cacheovať.
+     */
 
     if (
         request.url.includes(
@@ -83,9 +92,12 @@ self.addEventListener("fetch", event => {
 
         event.respondWith(
 
-            fetch(request, {
-                cache: "no-store"
-            })
+            fetch(
+                request,
+                {
+                    cache: "no-store"
+                }
+            )
 
         );
 
@@ -95,15 +107,16 @@ self.addEventListener("fetch", event => {
 
 
     /*
-       Ostatné súbory:
-
-       najprv internet,
-       pri probléme použijeme cache.
-    */
+     * Ostatné súbory:
+     *
+     * najprv internet,
+     * pri probléme cache.
+     */
 
     event.respondWith(
 
         fetch(request)
+
             .then(response => {
 
                 const copy =
