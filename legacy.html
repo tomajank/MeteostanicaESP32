@@ -1,16 +1,10 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
->
-
-<title>Meteostanica</title>
+<title>Meteostanica ESP32</title>
 
 <link rel="stylesheet" href="legacy.css">
 
@@ -18,7 +12,7 @@
 
 <body>
 
-<h2>Meteostanica</h2>
+<h2>Meteostanica ESP32</h2>
 
 <form id="legacyForm">
 
@@ -29,23 +23,52 @@
         type="text"
     >
 
+
     <label>Graf</label>
 
     <select id="field">
-        <option value="1">FIELD 1</option>
-        <option value="2">FIELD 2</option>
-        <option value="3">FIELD 3</option>
-        <option value="4">FIELD 4</option>
+
+        <option value="1">
+            FIELD 1
+        </option>
+
+        <option value="2">
+            FIELD 2
+        </option>
+
+        <option value="3">
+            FIELD 3
+        </option>
+
+        <option value="4">
+            FIELD 4
+        </option>
+
     </select>
+
 
     <label>Rozsah</label>
 
     <select id="range">
-        <option value="60">60 bodov</option>
-        <option value="100">100 bodov</option>
-        <option value="200">200 bodov</option>
-        <option value="500">500 bodov</option>
+
+        <option value="60">
+            60 bodov
+        </option>
+
+        <option value="100">
+            100 bodov
+        </option>
+
+        <option value="200">
+            200 bodov
+        </option>
+
+        <option value="500">
+            500 bodov
+        </option>
+
     </select>
+
 
     <button type="submit">
         Zobraziť graf
@@ -53,73 +76,427 @@
 
 </form>
 
+
 <script>
+
 (function () {
 
-    var params =
-        new URLSearchParams(
-            window.location.search
-        );
 
-    var channel =
-        params.get("channel");
+    /* =====================================================
+       STORAGE KEYS
+       ===================================================== */
 
-    var field =
-        params.get("field") || "1";
+    /*
+     * Tieto dva kľúče sú rovnaké ako v app.html.
+     */
 
-    var range =
-        params.get("range") || "60";
+    var STORAGE_CHANNEL =
+        "thingspeak_graph_channel";
 
 
-    if (channel) {
+    var STORAGE_FIELD =
+        "thingspeak_graph_field";
 
+
+    /*
+     * RANGE má legacy vlastný kľúč.
+     *
+     * Dôvod:
+     *
+     * app.html používa:
+     *
+     *     all
+     *     30d
+     *     10d
+     *     2d
+     *     1d
+     *
+     * legacy používa:
+     *
+     *     60
+     *     100
+     *     200
+     *     500
+     */
+
+    var STORAGE_LEGACY_RANGE =
+        "thingspeak_graph_legacy_range";
+
+
+    /* =====================================================
+       DOM
+       ===================================================== */
+
+    var channelInput =
         document.getElementById(
             "channel"
-        ).value = channel;
+        );
+
+
+    var fieldSelect =
+        document.getElementById(
+            "field"
+        );
+
+
+    var rangeSelect =
+        document.getElementById(
+            "range"
+        );
+
+
+    var form =
+        document.getElementById(
+            "legacyForm"
+        );
+
+
+    /* =====================================================
+       URL PARAMETER
+       ===================================================== */
+
+    /*
+     * Nepoužívame URLSearchParams.
+     *
+     * Legacy verzia musí fungovať aj na
+     * starom Android browseri.
+     */
+
+    function getUrlParameter(
+        name
+    ) {
+
+        var search =
+            window.location.search;
+
+
+        var pattern =
+            new RegExp(
+                "(?:\\?|&)" +
+                name +
+                "=([^&]*)"
+            );
+
+
+        var match =
+            search.match(
+                pattern
+            );
+
+
+        if (!match) {
+
+            return null;
+
+        }
+
+
+        try {
+
+            return decodeURIComponent(
+                match[1]
+            );
+
+        }
+        catch (error) {
+
+            return null;
+
+        }
 
     }
 
 
-    document.getElementById(
-        "field"
-    ).value = field;
+    /* =====================================================
+       URL VALUES
+       ===================================================== */
+
+    var urlChannel =
+        getUrlParameter(
+            "channel"
+        );
 
 
-    document.getElementById(
-        "range"
-    ).value = range;
+    var urlField =
+        getUrlParameter(
+            "field"
+        );
 
 
-    document.getElementById(
-        "legacyForm"
-    ).onsubmit = function () {
+    var urlRange =
+        getUrlParameter(
+            "range"
+        );
+
+
+    /* =====================================================
+       CHANNEL
+       ===================================================== */
+
+    /*
+     * Priorita:
+     *
+     * 1. Channel z URL
+     * 2. Channel z localStorage
+     * 3. prázdne pole
+     */
+
+    if (
+        urlChannel &&
+        /^[0-9]+$/.test(
+            urlChannel
+        )
+    ) {
+
+        channelInput.value =
+            urlChannel;
+
+
+        /*
+         * Channel z URL uložíme aj do
+         * spoločného localStorage.
+         */
+
+        localStorage.setItem(
+            STORAGE_CHANNEL,
+            urlChannel
+        );
+
+    }
+    else {
+
+        var savedChannel =
+            localStorage.getItem(
+                STORAGE_CHANNEL
+            );
+
+
+        if (
+            savedChannel &&
+            /^[0-9]+$/.test(
+                savedChannel
+            )
+        ) {
+
+            channelInput.value =
+                savedChannel;
+
+        }
+
+    }
+
+
+    /* =====================================================
+       FIELD
+       ===================================================== */
+
+    /*
+     * FIELD je spoločný s app.html.
+     *
+     * Priorita:
+     *
+     * 1. URL
+     * 2. localStorage
+     * 3. FIELD 1
+     */
+
+    if (
+        urlField === "1" ||
+        urlField === "2" ||
+        urlField === "3" ||
+        urlField === "4"
+    ) {
+
+        fieldSelect.value =
+            urlField;
+
+    }
+    else {
+
+        var savedField =
+            localStorage.getItem(
+                STORAGE_FIELD
+            );
+
+
+        if (
+            savedField === "1" ||
+            savedField === "2" ||
+            savedField === "3" ||
+            savedField === "4"
+        ) {
+
+            fieldSelect.value =
+                savedField;
+
+        }
+        else {
+
+            fieldSelect.value =
+                "1";
+
+        }
+
+    }
+
+
+    /* =====================================================
+       LEGACY RANGE
+       ===================================================== */
+
+    /*
+     * Legacy rozsah je počet bodov.
+     *
+     * Priorita:
+     *
+     * 1. URL
+     * 2. legacy localStorage
+     * 3. 60 bodov
+     */
+
+    if (
+        urlRange === "60" ||
+        urlRange === "100" ||
+        urlRange === "200" ||
+        urlRange === "500"
+    ) {
+
+        rangeSelect.value =
+            urlRange;
+
+
+        /*
+         * URL hodnotu uložíme ako poslednú
+         * legacy voľbu.
+         */
+
+        localStorage.setItem(
+            STORAGE_LEGACY_RANGE,
+            urlRange
+        );
+
+    }
+    else {
+
+        var savedLegacyRange =
+            localStorage.getItem(
+                STORAGE_LEGACY_RANGE
+            );
+
+
+        if (
+            savedLegacyRange === "60" ||
+            savedLegacyRange === "100" ||
+            savedLegacyRange === "200" ||
+            savedLegacyRange === "500"
+        ) {
+
+            rangeSelect.value =
+                savedLegacyRange;
+
+        }
+        else {
+
+            rangeSelect.value =
+                "60";
+
+        }
+
+    }
+
+
+    /* =====================================================
+       FORM SUBMIT
+       ===================================================== */
+
+    form.onsubmit = function () {
+
 
         var id =
-            document.getElementById(
-                "channel"
-            ).value;
+            channelInput.value.trim();
+
 
         var f =
-            document.getElementById(
-                "field"
-            ).value;
+            fieldSelect.value;
+
 
         var r =
-            document.getElementById(
-                "range"
-            ).value;
+            rangeSelect.value;
 
+        /*
+         * Rozmery aktuálneho viewportu.
+         */
 
-        if (!/^[0-9]+$/.test(id)) {
+        var width =
+            window.innerWidth ||
+            document.documentElement.clientWidth ||
+            screen.width;
+
+        var height =
+            window.innerHeight ||
+            document.documentElement.clientHeight ||
+            screen.height;
+
+        /* -------------------------------------------------
+           Kontrola Channel ID
+           ------------------------------------------------- */
+
+        if (
+            !/^[0-9]+$/.test(
+                id
+            )
+        ) {
 
             alert(
                 "Zadajte platné Channel ID."
             );
 
+
             return false;
 
         }
 
+
+        /* -------------------------------------------------
+           Uloženie poslednej konfigurácie
+           ------------------------------------------------- */
+
+        /*
+         * Channel:
+         * spoločný s app.html
+         */
+
+        localStorage.setItem(
+            STORAGE_CHANNEL,
+            id
+        );
+
+
+        /*
+         * FIELD:
+         * spoločný s app.html
+         */
+
+        localStorage.setItem(
+            STORAGE_FIELD,
+            f
+        );
+
+
+        /*
+         * RANGE:
+         * iba legacy verzia
+         */
+
+        localStorage.setItem(
+            STORAGE_LEGACY_RANGE,
+            r
+        );
+
+
+        /* -------------------------------------------------
+           Priamy ThingSpeak graf
+           ------------------------------------------------- */
 
         var url =
             "https://thingspeak.mathworks.com/channels/" +
@@ -128,8 +505,10 @@
             f +
             "?results=" +
             r +
-            "&type=line";
-
+            "&type=line&dynamic=true&width=" +
+            width +
+            "&height=" +
+            height;
 
         window.location.href = url;
 
@@ -139,6 +518,5 @@
 
 })();
 </script>
-
 </body>
 </html>

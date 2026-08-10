@@ -1,0 +1,488 @@
+
+/* =========================================================
+   ZÁKLAD
+   ========================================================= */
+
+html,
+body {
+
+    margin: 0;
+    width: 100%;
+    height: 100%;
+
+    overflow: hidden;
+
+    background: #ffffff;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    color: #222;
+}
+
+body {
+    overscroll-behavior: none;
+}
+
+#app {
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
+}
+
+ul, li, p {
+    margin: 0 0 13px 0;
+    color: #666;
+    line-height: 1.3;
+}
+
+/* =========================================================
+   HORNÝ PANEL
+   ========================================================= */
+
+#controls {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+
+    padding:
+        max(8px, env(safe-area-inset-top))
+        12px
+        8px;
+
+    background: #f5f5f5;
+    border-bottom: 1px solid #d5d5d5;
+    box-sizing: border-box;
+    flex-wrap: wrap;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+}
+
+.control-group label {
+    font-size: 13px;
+    color: #444;
+}
+
+/* =========================================================
+   SELECT
+   ========================================================= */
+
+select {
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    font-size: 14px;
+    padding: 5px 8px;
+    border: 1px solid #bbb;
+    border-radius: 5px;
+    background: #fff;
+    color: #222;
+    cursor: pointer;
+}
+
+select:focus {
+    outline: 2px solid #8ab4f8;
+    outline-offset: 1px;
+}
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+#status {
+    margin-left: auto;
+    font-size: 12px;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* =========================================================
+   SETTINGS BUTTON
+   ========================================================= */
+
+#settingsButton {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #bbb;
+    border-radius: 6px;
+    background: #fff;
+    color: #333;
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    font-size: 19px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+#settingsButton:hover {
+    background: #eeeeee;
+}
+
+/* =========================================================
+   GRAPH
+   ========================================================= */
+
+#graph {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+}
+
+/* =========================================================
+   MODAL OVERLAY
+   ========================================================= */
+
+#settingsOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, .35);
+}
+
+/* =========================================================
+   SETTINGS WINDOW
+   ========================================================= */
+
+#settingsBox {
+    width: 100%;
+    max-width: 520px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 22px;
+    box-sizing: border-box;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow:
+        0 8px 30px
+        rgba(0, 0, 0, .25);
+}
+
+#settingsBox .footer {
+    color: #999;
+    font-size: 11px;
+    margin: 20px 0 0 0;
+    padding: 15px 0 0 0;
+    text-align: right;
+    border-top: 1px solid #ccc;
+}
+
+/* =========================================================
+   SETTINGS HEADER
+   ========================================================= */
+
+#settingsHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+}
+
+#settingsHeader h2 {
+    margin: 0;
+    font-size: 21px;
+}
+
+#closeSettings {
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 5px;
+    background: #eee;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+/* =========================================================
+   SETTINGS SECTION
+   ========================================================= */
+
+.settings-section {
+    margin-bottom: 20px;
+}
+
+.settings-section h3 {
+    margin: 0 0 10px 0;
+    font-size: 15px;
+}
+
+/* =========================================================
+   CHANNEL INPUT
+   ========================================================= */
+
+#settingsChannel {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px;
+    font-size: 16px;
+    border: 1px solid #aaa;
+    border-radius: 6px;
+}
+
+
+/* =========================================================
+   FIELD SETTINGS
+   ========================================================= */
+
+.field-row {
+    display: grid;
+    grid-template-columns:
+        80px
+        minmax(0, 1fr)
+        100px;
+
+    gap: 7px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.field-row label {
+    font-size: 13px;
+    color: #555;
+}
+
+.field-row input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px;
+    border: 1px solid #bbb;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+.settings-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.settings-buttons button {
+    flex: 1;
+    padding: 10px;
+    border: 0;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+#saveSettings {
+    background: #1976d2;
+    color: #fff;
+}
+
+#cancelSettings {
+    background: #e5e5e5;
+    color: #222;
+}
+
+/* =========================================================
+   ERROR
+   ========================================================= */
+
+#settingsError,
+#setupError {
+    margin-top: 12px;
+    color: #c62828;
+    font-size: 13px;
+}
+
+/* =========================================================
+   SETUP
+   ========================================================= */
+
+#setup {
+    position: fixed;
+    inset: 0;
+    z-index: 4000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+    background: #fff;
+}
+
+#setupBox {
+    width: 100%;
+    max-width: 420px;
+    padding: 25px;
+    box-sizing: border-box;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    box-shadow:
+        0 4px 20px
+        rgba(0, 0, 0, .12);
+}
+
+#setupBox h2 {
+    margin: 0 0 10px 0;
+}
+
+#channelInput {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #aaa;
+    border-radius: 6px;
+}
+
+#openChannelButton {
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px;
+    border: 0;
+    border-radius: 6px;
+    background: #1976d2;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+    #controls {
+        display: grid;
+        grid-template-columns:
+            minmax(0, 1fr)
+            minmax(0, 1fr)
+            36px;
+
+        grid-template-rows:
+            auto
+            auto;
+
+        gap: 6px;
+        padding:
+            6px
+            8px;
+    }
+
+    .control-group {
+        width: 100%;
+    }
+
+    .control-group label {
+        display: none;
+    }
+
+    .control-group select {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        font-size: 14px;
+        padding: 7px 6px;
+    }
+
+    .control-group:nth-child(1) {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .control-group:nth-child(2) {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    #settingsButton {
+        grid-column: 3;
+        grid-row: 1;
+        width: 34px;
+        height: 34px;
+        justify-self: end;
+    }
+
+    #status {
+        grid-column:
+            1 / 3;
+
+        grid-row: 2;
+        width: 100%;
+        margin: 0;
+        min-width: 0;
+        font-size: 11px;
+        line-height: 18px;
+    }
+
+    #settingsBox {
+        max-height: 94vh;
+        padding: 17px;
+    }
+
+    .field-row {
+        grid-template-columns:
+            65px
+            minmax(0, 1fr)
+            75px;
+    }
+}
+
+
+/* =========================================================
+   VERY SMALL MOBILE
+   ========================================================= */
+
+@media (max-width: 380px) {
+
+    #controls {
+        grid-template-columns:
+            minmax(0, 1fr)
+            minmax(0, 1fr)
+            34px;
+
+        gap: 5px;
+    }
+
+    select {
+        font-size: 13px;
+    }
+
+    #settingsButton {
+        width: 32px;
+        height: 32px;
+        font-size: 18px;
+    }
+
+    .field-row {
+        grid-template-columns:
+            55px
+            minmax(0, 1fr)
+            65px;
+    }
+}
