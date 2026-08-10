@@ -1882,238 +1882,45 @@ function renderGraph() {
 function loadFeedsXHR() {
 
     statusElement.textContent =
-        "Načítavam dáta...";
+        "Testujem ThingSpeak...";
 
     var xhr = new XMLHttpRequest();
 
-    var url = buildFeedsUrl();
-
-    console.log("ThingSpeak URL:", url);
-
     xhr.open(
         "GET",
-        url,
+        "https://api.thingspeak.com/channels/3420616/feeds.json?results=1",
         true
     );
 
-    /*
-     * Android 4.4.2 môže na pomalšom
-     * spojení visieť veľmi dlho.
-     *
-     * Po 20 sekundách request ukončíme.
-     */
-
-    xhr.timeout = 20000;
-
-
     xhr.onreadystatechange = function () {
 
-        if (xhr.readyState !== 4) {
-            return;
-        }
-
-        console.log(
-            "XHR readyState:",
-            xhr.readyState,
-            "status:",
-            xhr.status
-        );
-
-
-        if (xhr.status !== 200) {
+        if (xhr.readyState === 4) {
 
             statusElement.textContent =
-                "Chyba: HTTP " +
-                xhr.status;
-
-            return;
-        }
-
-
-        var json;
-
-        try {
-
-            json =
-                JSON.parse(
-                    xhr.responseText
-                );
+                "READY: " +
+                xhr.status +
+                " / " +
+                xhr.responseText.substring(0, 100);
 
         }
-        catch (error) {
-
-            console.error(
-                "JSON chyba:",
-                error
-            );
-
-            statusElement.textContent =
-                "Chyba: neplatné dáta.";
-
-            return;
-        }
-
-
-        if (
-            !json.channel ||
-            !json.channel.id
-        ) {
-
-            statusElement.textContent =
-                "Chyba: ThingSpeak nevrátil kanál.";
-
-            return;
-        }
-
-
-        if (
-            !Array.isArray(
-                json.feeds
-            )
-        ) {
-
-            statusElement.textContent =
-                "Chyba: ThingSpeak nevrátil dáta.";
-
-            return;
-        }
-
-
-        /*
-         * Channel information
-         */
-
-        channelInfo =
-            json.channel;
-
-
-        /*
-         * Lokálne nastavenia kanála
-         */
-
-        loadChannelSettings();
-
-
-        /*
-         * Dáta
-         */
-
-        allFeeds =
-            json.feeds;
-
-
-        /*
-         * Aktualizácia názvov FIELDov
-         */
-
-        createFieldOptions();
-
-
-        /*
-         * Obnovenie FIELD / RANGE
-         */
-
-        loadSelectionSettings();
-
-
-        /*
-         * URL synchronizácia
-         */
-
-        updateUrl();
-
-
-        /*
-         * Graf
-         */
-
-        renderGraph();
 
     };
-
-
-    /*
-     * Chyba spojenia
-     */
 
     xhr.onerror = function () {
 
-        console.error(
-            "XHR network error"
-        );
-
         statusElement.textContent =
-            "Chyba: nepodarilo sa pripojiť k ThingSpeak.";
+            "XHR ERROR";
 
     };
-
-
-    /*
-     * Timeout
-     */
 
     xhr.ontimeout = function () {
 
-        console.error(
-            "XHR timeout"
-        );
-
         statusElement.textContent =
-            "Chyba: ThingSpeak neodpovedá.";
+            "XHR TIMEOUT";
 
     };
 
-
-    /*
-     * Abort
-     */
-
-    xhr.onabort = function () {
-
-        console.error(
-            "XHR aborted"
-        );
-
-        statusElement.textContent =
-            "Chyba: načítanie bolo prerušené.";
-
-    };
-
-
-    /*
-     * Dôležité:
-     *
-     * NEPRIDÁVAME:
-     *
-     * xhr.setRequestHeader(
-     *     "Cache-Control",
-     *     "no-cache"
-     * );
-     *
-     * Pretože práve tento header
-     * nám predtým vyvolával CORS
-     * preflight problém.
-     */
-
-
-    try {
-
-        xhr.send(null);
-
-    }
-    catch (error) {
-
-        console.error(
-            "XHR send error:",
-            error
-        );
-
-        statusElement.textContent =
-            "Chyba: " +
-            error.message;
-
-    }
-
+    xhr.send(null);
 }
 
 function loadFeeds() {
