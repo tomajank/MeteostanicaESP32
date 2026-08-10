@@ -1879,168 +1879,90 @@ function renderGraph() {
 
 }
 
-
-/* =========================================================
-   THINGSPEAK XHR
-   Kompatibilné aj so staršími Androidmi
-   ========================================================= */
-
 function loadFeedsXHR() {
-
-    return new Promise(function(resolve, reject) {
-
-        var xhr =
-            new XMLHttpRequest();
-
-
-        xhr.open(
-            "GET",
-            buildFeedsUrl(),
-            true
-        );
-
-
-        /*
-         * Žiadne vlastné HTTP hlavičky!
-         *
-         * Je to dôležité kvôli CORS.
-         * Vlastná hlavička by vyvolala preflight
-         * OPTIONS request.
-         */
-
-
-        xhr.onreadystatechange =
-            function() {
-
-                if (
-                    xhr.readyState !== 4
-                ) {
-
-                    return;
-                }
-
-
-                if (
-                    xhr.status >= 200 &&
-                    xhr.status < 300
-                ) {
-
-                    try {
-
-                        var json =
-                            JSON.parse(
-                                xhr.responseText
-                            );
-
-
-                        resolve(json);
-
-                    }
-                    catch (error) {
-
-                        reject(
-                            new Error(
-                                "ThingSpeak vrátil neplatné JSON dáta."
-                            )
-                        );
-
-                    }
-
-                }
-                else {
-
-                    reject(
-                        new Error(
-                            "HTTP chyba " +
-                            xhr.status
-                        )
-                    );
-
-                }
-
-            };
-
-
-        xhr.onerror =
-            function() {
-
-                reject(
-                    new Error(
-                        "Nepodarilo sa pripojiť k ThingSpeak."
-                    )
-                );
-
-            };
-
-
-        xhr.ontimeout =
-            function() {
-
-                reject(
-                    new Error(
-                        "Časový limit pripojenia k ThingSpeak vypršal."
-                    )
-                );
-
-            };
-
-
-        xhr.timeout =
-            30000;
-
-
-        xhr.send(null);
-
-    });
-
-}
-
-/* =========================================================
-   LOAD FEEDS
-   ========================================================= */
-
-async function loadFeeds() {
 
     statusElement.textContent =
         "Načítavam dáta...";
 
+    var xhr = new XMLHttpRequest();
 
-    try {
+    var url = buildFeedsUrl();
 
-        /*
-         * Najprv načítame uložený FIELD / RANGE.
-         *
-         * Toto je dôležité, pretože buildFeedsUrl()
-         * používa aktuálny rangeSelect.value.
-         */
+    console.log("ThingSpeak URL:", url);
 
-        loadSelectionSettings();
+    xhr.open(
+        "GET",
+        url,
+        true
+    );
 
+    /*
+     * Android 4.4.2 môže na pomalšom
+     * spojení visieť veľmi dlho.
+     *
+     * Po 20 sekundách request ukončíme.
+     */
 
-        /*
-         * Načítanie dát cez XMLHttpRequest.
-         *
-         * Namiesto fetch() používame staršiu
-         * a kompatibilnejšiu technológiu.
-         */
-
-        const json =
-            await loadFeedsXHR();
+    xhr.timeout = 20000;
 
 
-        /*
-         * Kontrola odpovede ThingSpeak.
-         */
+    xhr.onreadystatechange = function () {
+
+        if (xhr.readyState !== 4) {
+            return;
+        }
+
+        console.log(
+            "XHR readyState:",
+            xhr.readyState,
+            "status:",
+            xhr.status
+        );
+
+
+        if (xhr.status !== 200) {
+
+            statusElement.textContent =
+                "Chyba: HTTP " +
+                xhr.status;
+
+            return;
+        }
+
+
+        var json;
+
+        try {
+
+            json =
+                JSON.parse(
+                    xhr.responseText
+                );
+
+        }
+        catch (error) {
+
+            console.error(
+                "JSON chyba:",
+                error
+            );
+
+            statusElement.textContent =
+                "Chyba: neplatné dáta.";
+
+            return;
+        }
+
 
         if (
             !json.channel ||
             !json.channel.id
         ) {
 
-            throw new Error(
-                "ThingSpeak nevrátil údaje o kanáli."
-            );
+            statusElement.textContent =
+                "Chyba: ThingSpeak nevrátil kanál.";
 
+            return;
         }
 
 
@@ -2050,15 +1972,15 @@ async function loadFeeds() {
             )
         ) {
 
-            throw new Error(
-                "ThingSpeak nevrátil platné dáta."
-            );
+            statusElement.textContent =
+                "Chyba: ThingSpeak nevrátil dáta.";
 
+            return;
         }
 
 
         /*
-         * Informácie o kanáli.
+         * Channel information
          */
 
         channelInfo =
@@ -2066,14 +1988,14 @@ async function loadFeeds() {
 
 
         /*
-         * Lokálne nastavenia aktuálneho kanála.
+         * Lokálne nastavenia kanála
          */
 
         loadChannelSettings();
 
 
         /*
-         * Merania.
+         * Dáta
          */
 
         allFeeds =
@@ -2081,49 +2003,134 @@ async function loadFeeds() {
 
 
         /*
-         * Aktualizujeme názvy FIELDov
-         * podľa ThingSpeak + localStorage.
+         * Aktualizácia názvov FIELDov
          */
 
         createFieldOptions();
 
 
         /*
-         * Po vytvorení FIELD dropdownu
-         * znovu nastavíme FIELD/RANGE.
+         * Obnovenie FIELD / RANGE
          */
 
         loadSelectionSettings();
 
 
         /*
-         * Synchronizujeme URL.
+         * URL synchronizácia
          */
 
         updateUrl();
 
 
         /*
-         * Vykreslíme graf.
+         * Graf
          */
 
         renderGraph();
 
+    };
+
+
+    /*
+     * Chyba spojenia
+     */
+
+    xhr.onerror = function () {
+
+        console.error(
+            "XHR network error"
+        );
+
+        statusElement.textContent =
+            "Chyba: nepodarilo sa pripojiť k ThingSpeak.";
+
+    };
+
+
+    /*
+     * Timeout
+     */
+
+    xhr.ontimeout = function () {
+
+        console.error(
+            "XHR timeout"
+        );
+
+        statusElement.textContent =
+            "Chyba: ThingSpeak neodpovedá.";
+
+    };
+
+
+    /*
+     * Abort
+     */
+
+    xhr.onabort = function () {
+
+        console.error(
+            "XHR aborted"
+        );
+
+        statusElement.textContent =
+            "Chyba: načítanie bolo prerušené.";
+
+    };
+
+
+    /*
+     * Dôležité:
+     *
+     * NEPRIDÁVAME:
+     *
+     * xhr.setRequestHeader(
+     *     "Cache-Control",
+     *     "no-cache"
+     * );
+     *
+     * Pretože práve tento header
+     * nám predtým vyvolával CORS
+     * preflight problém.
+     */
+
+
+    try {
+
+        xhr.send(null);
+
     }
-
-
     catch (error) {
 
         console.error(
+            "XHR send error:",
             error
         );
-
 
         statusElement.textContent =
             "Chyba: " +
             error.message;
 
     }
+
+}
+
+function loadFeeds() {
+
+    /*
+     * Najprv načítame uložený
+     * FIELD a RANGE.
+     */
+
+    loadSelectionSettings();
+
+
+    /*
+     * Potom vytvoríme URL.
+     */
+
+    loadFeedsXHR();
 
 }
 
@@ -2765,7 +2772,7 @@ if (
    APPLICATION
    ========================================================= */
 
-async function loadApplication() {
+function loadApplication() {
 
     /*
      * Najprv zistíme Channel:
@@ -2808,7 +2815,7 @@ async function loadApplication() {
      * a meraní.
      */
 
-    await loadFeeds();
+    loadFeeds();
 
 }
 
