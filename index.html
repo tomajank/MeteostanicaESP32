@@ -1884,45 +1884,178 @@ function renderGraph() {
    LOAD FEEDS
    ========================================================= */
 
-async function loadFeeds() {
+/* =========================================================
+   THINGSPEAK XHR
+   Kompatibilné aj so staršími Androidmi
+   ========================================================= */
 
-    const requestId = ++feedsRequestId;
+function loadFeedsXHR() {
+
+    return new Promise(function(resolve, reject) {
+
+        var xhr =
+            new XMLHttpRequest();
+
+
+        xhr.open(
+            "GET",
+            buildFeedsUrl(),
+            true
+        );
+
+
+        /*
+         * Cache vypneme cez HTTP hlavičku,
+         * ak ju prehliadač podporuje.
+         */
+
+        xhr.setRequestHeader(
+            "Cache-Control",
+            "no-cache"
+        );
+
+
+        xhr.onreadystatechange =
+            function() {
+
+                if (
+                    xhr.readyState !== 4
+                ) {
+
+                    return;
+
+                }
+
+
+                /*
+                 * HTTP 2xx = úspech
+                 */
+
+                if (
+                    xhr.status >= 200 &&
+                    xhr.status < 300
+                ) {
+
+                    try {
+
+                        var json =
+                            JSON.parse(
+                                xhr.responseText
+                            );
+
+
+                        resolve(json);
+
+                    }
+
+                    catch (error) {
+
+                        reject(
+                            new Error(
+                                "ThingSpeak vrátil neplatné JSON dáta."
+                            )
+                        );
+
+                    }
+
+                }
+
+                else {
+
+                    reject(
+                        new Error(
+                            "HTTP chyba " +
+                            xhr.status
+                        )
+                    );
+
+                }
+
+            };
+
+
+        /*
+         * Chyba sieťového spojenia.
+         */
+
+        xhr.onerror =
+            function() {
+
+                reject(
+                    new Error(
+                        "Nepodarilo sa pripojiť k ThingSpeak."
+                    )
+                );
+
+            };
+
+
+        /*
+         * Timeout.
+         */
+
+        xhr.ontimeout =
+            function() {
+
+                reject(
+                    new Error(
+                        "Časový limit pripojenia k ThingSpeak vypršal."
+                    )
+                );
+
+            };
+
+
+        /*
+         * 30 sekúnd.
+         */
+
+        xhr.timeout =
+            30000;
+
+
+        xhr.send(null);
+
+    });
+
+}
+
+/* =========================================================
+   LOAD FEEDS
+   ========================================================= */
+
+async function loadFeeds() {
 
     statusElement.textContent =
         "Načítavam dáta...";
 
+
     try {
+
+        /*
+         * Najprv načítame uložený FIELD / RANGE.
+         *
+         * Toto je dôležité, pretože buildFeedsUrl()
+         * používa aktuálny rangeSelect.value.
+         */
 
         loadSelectionSettings();
 
-        const response =
-            await fetch(
-                buildFeedsUrl(),
-                {
-                    cache: "no-store"
-                }
-            );
-
-        if (!response.ok) {
-
-            throw new Error(
-                "HTTP chyba " +
-                response.status
-            );
-
-        }
-
-        const json =
-            await response.json();
 
         /*
-         * Ak medzitým začal novší request,
-         * tento výsledok už nepoužijeme.
+         * Načítanie dát cez XMLHttpRequest.
+         *
+         * Namiesto fetch() používame staršiu
+         * a kompatibilnejšiu technológiu.
          */
 
-        if (requestId !== feedsRequestId) {
-            return;
-        }
+        const json =
+            await loadFeedsXHR();
+
+
+        /*
+         * Kontrola odpovede ThingSpeak.
+         */
 
         if (
             !json.channel ||
@@ -1935,8 +2068,11 @@ async function loadFeeds() {
 
         }
 
+
         if (
-            !Array.isArray(json.feeds)
+            !Array.isArray(
+                json.feeds
+            )
         ) {
 
             throw new Error(
@@ -1945,36 +2081,68 @@ async function loadFeeds() {
 
         }
 
+
+        /*
+         * Informácie o kanáli.
+         */
+
         channelInfo =
             json.channel;
 
+
+        /*
+         * Lokálne nastavenia aktuálneho kanála.
+         */
+
         loadChannelSettings();
+
+
+        /*
+         * Merania.
+         */
 
         allFeeds =
             json.feeds;
 
+
+        /*
+         * Aktualizujeme názvy FIELDov
+         * podľa ThingSpeak + localStorage.
+         */
+
         createFieldOptions();
+
+
+        /*
+         * Po vytvorení FIELD dropdownu
+         * znovu nastavíme FIELD/RANGE.
+         */
 
         loadSelectionSettings();
 
+
+        /*
+         * Synchronizujeme URL.
+         */
+
         updateUrl();
+
+
+        /*
+         * Vykreslíme graf.
+         */
 
         renderGraph();
 
     }
 
+
     catch (error) {
 
-        /*
-         * Chybu starého requestu ignorujeme,
-         * ak už existuje novší request.
-         */
+        console.error(
+            error
+        );
 
-        if (requestId !== feedsRequestId) {
-            return;
-        }
-
-        console.error(error);
 
         statusElement.textContent =
             "Chyba: " +
