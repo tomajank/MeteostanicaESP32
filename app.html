@@ -1,0 +1,2705 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color"
+      content="#f5f5f5">
+<meta name="mobile-web-app-capable"
+      content="yes">
+<meta name="apple-mobile-web-app-capable"
+      content="yes">
+<meta name="apple-mobile-web-app-status-bar-style"
+      content="default">
+<meta name="apple-mobile-web-app-title"
+      content="ThingSpeak">
+<link rel="manifest"
+      href="manifest.json">
+<link rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='15' fill='%231976d2'/%3E%3Cpolyline points='15,65 35,45 50,58 75,25 90,35' fill='none' stroke='white' stroke-width='8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Meteostanica">
+
+<title>ThingSpeak Graph</title>
+
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+<style>
+
+/* =========================================================
+   ZÁKLAD
+   ========================================================= */
+
+html,
+body {
+
+    margin: 0;
+    width: 100%;
+    height: 100%;
+
+    overflow: hidden;
+
+    background: #ffffff;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    color: #222;
+}
+
+body {
+    overscroll-behavior: none;
+}
+
+#app {
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
+}
+
+ul, li, p {
+    margin: 0 0 13px 0;
+    color: #666;
+    line-height: 1.3;
+}
+
+/* =========================================================
+   HORNÝ PANEL
+   ========================================================= */
+
+#controls {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+
+    padding:
+        max(8px, env(safe-area-inset-top))
+        12px
+        8px;
+
+    background: #f5f5f5;
+    border-bottom: 1px solid #d5d5d5;
+    box-sizing: border-box;
+    flex-wrap: wrap;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+}
+
+.control-group label {
+    font-size: 13px;
+    color: #444;
+}
+
+/* =========================================================
+   SELECT
+   ========================================================= */
+
+select {
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    font-size: 14px;
+    padding: 5px 8px;
+    border: 1px solid #bbb;
+    border-radius: 5px;
+    background: #fff;
+    color: #222;
+    cursor: pointer;
+}
+
+select:focus {
+    outline: 2px solid #8ab4f8;
+    outline-offset: 1px;
+}
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+#status {
+    margin-left: auto;
+    font-size: 12px;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* =========================================================
+   SETTINGS BUTTON
+   ========================================================= */
+
+#settingsButton {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #bbb;
+    border-radius: 6px;
+    background: #fff;
+    color: #333;
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    font-size: 19px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+#settingsButton:hover {
+    background: #eeeeee;
+}
+
+/* =========================================================
+   GRAPH
+   ========================================================= */
+
+#graph {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+}
+
+/* =========================================================
+   MODAL OVERLAY
+   ========================================================= */
+
+#settingsOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, .35);
+}
+
+/* =========================================================
+   SETTINGS WINDOW
+   ========================================================= */
+
+#settingsBox {
+    width: 100%;
+    max-width: 520px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 22px;
+    box-sizing: border-box;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow:
+        0 8px 30px
+        rgba(0, 0, 0, .25);
+}
+
+#settingsBox .footer {
+    color: #999;
+    font-size: 11px;
+    margin: 20px 0 0 0;
+    padding: 15px 0 0 0;
+    text-align: right;
+    border-top: 1px solid #ccc;
+}
+
+/* =========================================================
+   SETTINGS HEADER
+   ========================================================= */
+
+#settingsHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+}
+
+#settingsHeader h2 {
+    margin: 0;
+    font-size: 21px;
+}
+
+#closeSettings {
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 5px;
+    background: #eee;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+/* =========================================================
+   SETTINGS SECTION
+   ========================================================= */
+
+.settings-section {
+    margin-bottom: 20px;
+}
+
+.settings-section h3 {
+    margin: 0 0 10px 0;
+    font-size: 15px;
+}
+
+/* =========================================================
+   CHANNEL INPUT
+   ========================================================= */
+
+#settingsChannel {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px;
+    font-size: 16px;
+    border: 1px solid #aaa;
+    border-radius: 6px;
+}
+
+
+/* =========================================================
+   FIELD SETTINGS
+   ========================================================= */
+
+.field-row {
+    display: grid;
+    grid-template-columns:
+        80px
+        minmax(0, 1fr)
+        100px;
+
+    gap: 7px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.field-row label {
+    font-size: 13px;
+    color: #555;
+}
+
+.field-row input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px;
+    border: 1px solid #bbb;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+.settings-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.settings-buttons button {
+    flex: 1;
+    padding: 10px;
+    border: 0;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+#saveSettings {
+    background: #1976d2;
+    color: #fff;
+}
+
+#cancelSettings {
+    background: #e5e5e5;
+    color: #222;
+}
+
+/* =========================================================
+   ERROR
+   ========================================================= */
+
+#settingsError,
+#setupError {
+    margin-top: 12px;
+    color: #c62828;
+    font-size: 13px;
+}
+
+/* =========================================================
+   SETUP
+   ========================================================= */
+
+#setup {
+    position: fixed;
+    inset: 0;
+    z-index: 4000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+    background: #fff;
+}
+
+#setupBox {
+    width: 100%;
+    max-width: 420px;
+    padding: 25px;
+    box-sizing: border-box;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    box-shadow:
+        0 4px 20px
+        rgba(0, 0, 0, .12);
+}
+
+#setupBox h2 {
+    margin: 0 0 10px 0;
+}
+
+#channelInput {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #aaa;
+    border-radius: 6px;
+}
+
+#openChannelButton {
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px;
+    border: 0;
+    border-radius: 6px;
+    background: #1976d2;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+    #controls {
+        display: grid;
+        grid-template-columns:
+            minmax(0, 1fr)
+            minmax(0, 1fr)
+            36px;
+
+        grid-template-rows:
+            auto
+            auto;
+
+        gap: 6px;
+        padding:
+            6px
+            8px;
+    }
+
+    .control-group {
+        width: 100%;
+    }
+
+    .control-group label {
+        display: none;
+    }
+
+    .control-group select {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        font-size: 14px;
+        padding: 7px 6px;
+    }
+
+    .control-group:nth-child(1) {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .control-group:nth-child(2) {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    #settingsButton {
+        grid-column: 3;
+        grid-row: 1;
+        width: 34px;
+        height: 34px;
+        justify-self: end;
+    }
+
+    #status {
+        grid-column:
+            1 / 3;
+
+        grid-row: 2;
+        width: 100%;
+        margin: 0;
+        min-width: 0;
+        font-size: 11px;
+        line-height: 18px;
+    }
+
+    #settingsBox {
+        max-height: 94vh;
+        padding: 17px;
+    }
+
+    .field-row {
+        grid-template-columns:
+            65px
+            minmax(0, 1fr)
+            75px;
+    }
+}
+
+
+/* =========================================================
+   VERY SMALL MOBILE
+   ========================================================= */
+
+@media (max-width: 380px) {
+
+    #controls {
+        grid-template-columns:
+            minmax(0, 1fr)
+            minmax(0, 1fr)
+            34px;
+
+        gap: 5px;
+    }
+
+    select {
+        font-size: 13px;
+    }
+
+    #settingsButton {
+        width: 32px;
+        height: 32px;
+        font-size: 18px;
+    }
+
+    .field-row {
+        grid-template-columns:
+            55px
+            minmax(0, 1fr)
+            65px;
+    }
+}
+</style>
+</head>
+
+<body>
+<div id="app">
+
+    <!-- =================================================
+         CONTROLS
+         ================================================= -->
+
+    <div id="controls">
+        <div class="control-group">
+            <label for="fieldSelect">
+                Graf:
+            </label>
+
+            <select id="fieldSelect"></select>
+        </div>
+
+        <div class="control-group">
+            <label for="rangeSelect">
+                Rozsah:
+            </label>
+
+            <select id="rangeSelect">
+
+                <option value="all">
+                    Všetky dostupné
+                </option>
+                <option value="30d">
+                    30 dní
+                </option>
+                <option value="10d">
+                    10 dní
+                </option>
+                <option value="2d">
+                    2 dni
+                </option>
+                <option value="1d">
+                    1 deň
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div id="status">
+            Načítavam...
+        </div>
+
+
+        <button
+            id="settingsButton"
+            title="Nastavenie"
+            aria-label="Nastavenie">
+
+            ⚙
+
+        </button>
+    </div>
+
+    <!-- =================================================
+         GRAPH
+         ================================================= -->
+
+    <div id="graph"></div>
+</div>
+
+
+<!-- =====================================================
+     SETTINGS
+     ===================================================== -->
+
+<div id="settingsOverlay">
+    <div id="settingsBox">
+        <div id="settingsHeader">
+            <h2>
+                Nastavenie
+            </h2>
+            <button
+                id="closeSettings"
+                aria-label="Zavrieť">
+
+                ×
+
+            </button>
+        </div>
+
+        <div class="settings-section">
+            <h3>
+                ThingSpeak Channel
+            </h3>
+            <input
+                id="settingsChannel"
+                type="number"
+                inputmode="numeric"
+                placeholder="Channel ID">
+
+        </div>
+
+        <div class="settings-section">
+            <h3>
+                Názvy a jednotky
+            </h3>
+            <div id="fieldSettings"></div>
+
+        </div>
+
+        <div id="settingsError"></div>
+
+        <div class="settings-buttons">
+            <button id="cancelSettings">
+                Zrušiť
+            </button>
+
+            <button id="saveSettings">
+                Uložiť
+            </button>
+
+        </div>
+        <div class="footer">Meteostanica ESP32, Tomáš Jankech 2026</div>
+    </div>
+</div>
+
+
+<!-- =====================================================
+     INITIAL SETUP
+     ===================================================== -->
+
+<div id="setup">
+    <div id="setupBox">
+        <h2>
+            Meteostanica ESP32
+        </h2>
+        <ul>
+            <li>Aplikácia umožňuje zobrazovať namerané hodnoty z <i>Meteostanice ESP32</i> formou grafu vo webovom prehliadači na PC či smartfóne</li>
+            <li>Stačí sem vložiť <i>Channel ID</i> tvojho ThingSpeak kanála nakonfigurovaného s meteostanicou</li>
+            <li>Aplikácia predpokladá že ThingSpeak kanál obsahuje 4 štandartné polia a je správne prepojený s meteostanicou</li>
+        </ul>
+        <p>
+            Zadajte <i>Channel ID</i> ThingSpeak kanála:
+        </p>
+
+        <input
+            id="channelInput"
+            type="number"
+            inputmode="numeric">
+
+        <button
+            id="openChannelButton">
+            Načítať kanál
+        </button>
+
+        <div id="setupError"></div>
+    </div>
+</div>
+
+
+<script>
+
+/* =========================================================
+   KONFIGURÁCIA
+   ========================================================= */
+
+/*
+ * Pre PUBLIC kanál:
+ *
+ *     const READ_API_KEY = "";
+ *
+ * Pre PRIVATE kanál sem vlož Read API Key.
+ *
+ * Pozor:
+ * Read API Key uložený v HTML súbore nie je tajný.
+ * Každý, kto má súbor, ho môže vidieť.
+ */
+
+const READ_API_KEY = "";
+
+
+/*
+ * Automatické obnovenie dát:
+ *
+ * 150000 ms = 150 sekúnd = 2,5 minúty
+ */
+
+const REFRESH_INTERVAL = 150000;
+
+
+/*
+ * ThingSpeak povoľuje maximálne 8000 záznamov
+ * v jednom requeste.
+ */
+
+const MAX_RESULTS = 8000;
+
+
+/* =========================================================
+   KONŠTANTY
+   ========================================================= */
+
+const FIELD_COLORS = {
+
+    1: "#d62020",
+    2: "#1976d2",
+    3: "#2e7d32",
+    4: "#7b1fa2"
+
+};
+
+
+const VALID_FIELDS = [
+    "1",
+    "2",
+    "3",
+    "4"
+];
+
+
+const VALID_RANGES = [
+    "all",
+    "30d",
+    "10d",
+    "2d",
+    "1d"
+];
+
+
+const RANGE_NAMES = {
+
+    all:
+        "všetky dostupné",
+
+    "30d":
+        "30 dní",
+
+    "10d":
+        "10 dní",
+
+    "2d":
+        "2 dni",
+
+    "1d":
+        "1 deň"
+
+};
+
+
+/* =========================================================
+   STORAGE KEYS
+   ========================================================= */
+
+const STORAGE_CHANNEL =
+    "thingspeak_graph_channel";
+
+const STORAGE_FIELD =
+    "thingspeak_graph_field";
+
+const STORAGE_RANGE =
+    "thingspeak_graph_range";
+
+
+/* =========================================================
+   DOM
+   ========================================================= */
+
+const fieldSelect =
+    document.getElementById(
+        "fieldSelect"
+    );
+
+
+const rangeSelect =
+    document.getElementById(
+        "rangeSelect"
+    );
+
+
+const statusElement =
+    document.getElementById(
+        "status"
+    );
+
+
+const graphElement =
+    document.getElementById(
+        "graph"
+    );
+
+
+const settingsButton =
+    document.getElementById(
+        "settingsButton"
+    );
+
+
+const settingsOverlay =
+    document.getElementById(
+        "settingsOverlay"
+    );
+
+
+const closeSettings =
+    document.getElementById(
+        "closeSettings"
+    );
+
+
+const cancelSettings =
+    document.getElementById(
+        "cancelSettings"
+    );
+
+
+const saveSettings =
+    document.getElementById(
+        "saveSettings"
+    );
+
+
+const settingsChannel =
+    document.getElementById(
+        "settingsChannel"
+    );
+
+
+const settingsError =
+    document.getElementById(
+        "settingsError"
+    );
+
+
+const fieldSettings =
+    document.getElementById(
+        "fieldSettings"
+    );
+
+
+const setupElement =
+    document.getElementById(
+        "setup"
+    );
+
+
+const channelInput =
+    document.getElementById(
+        "channelInput"
+    );
+
+
+const openChannelButton =
+    document.getElementById(
+        "openChannelButton"
+    );
+
+
+const setupError =
+    document.getElementById(
+        "setupError"
+    );
+
+
+/* =========================================================
+   APPLICATION STATE
+   ========================================================= */
+
+let channelId = null;
+
+let channelInfo = null;
+
+let allFeeds = [];
+
+let channelSettings = {};
+
+let feedsRequestId = 0;
+
+/* =========================================================
+   URL
+   ========================================================= */
+
+function getUrlParameters() {
+
+    return new URLSearchParams(
+        window.location.search
+    );
+
+}
+
+
+function getChannelFromUrl() {
+
+    const value =
+        getUrlParameters().get(
+            "channel"
+        );
+
+
+    if (
+        value &&
+        /^\d+$/.test(value)
+    ) {
+
+        return value;
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   CHANNEL
+   ========================================================= */
+
+function determineChannel() {
+
+    const urlChannel =
+        getChannelFromUrl();
+
+
+    if (urlChannel) {
+
+        channelId =
+            urlChannel;
+
+        localStorage.setItem(
+            STORAGE_CHANNEL,
+            channelId
+        );
+
+        return true;
+
+    }
+
+
+    const savedChannel =
+        localStorage.getItem(
+            STORAGE_CHANNEL
+        );
+
+
+    if (
+        savedChannel &&
+        /^\d+$/.test(savedChannel)
+    ) {
+
+        channelId =
+            savedChannel;
+
+        return true;
+
+    }
+
+
+    return false;
+
+}
+
+
+/* =========================================================
+   URL UPDATE
+   ========================================================= */
+
+function updateUrl() {
+
+    if (!channelId) {
+        return;
+    }
+
+
+    const url =
+        new URL(
+            window.location.href
+        );
+
+
+    url.searchParams.set(
+        "channel",
+        channelId
+    );
+
+
+    url.searchParams.set(
+        "field",
+        fieldSelect.value
+    );
+
+
+    url.searchParams.set(
+        "range",
+        rangeSelect.value
+    );
+
+
+    history.replaceState(
+        null,
+        "",
+        url
+    );
+
+}
+
+
+/* =========================================================
+   CHANNEL SETTINGS
+   ========================================================= */
+
+function getChannelSettingsKey(
+    id = channelId
+) {
+
+    return (
+        "thingspeak_graph_settings_" +
+        id
+    );
+
+}
+
+
+function loadChannelSettings() {
+
+    channelSettings = {};
+
+    if (!channelId) {
+        return;
+    }
+
+
+    const stored =
+        localStorage.getItem(
+            getChannelSettingsKey()
+        );
+
+
+    if (!stored) {
+        return;
+    }
+
+
+    try {
+
+        const parsed =
+            JSON.parse(stored);
+
+
+        if (
+            parsed &&
+            typeof parsed === "object"
+        ) {
+
+            channelSettings =
+                parsed;
+
+        }
+
+    }
+    catch {
+
+        channelSettings = {};
+
+    }
+
+}
+
+
+/* =========================================================
+   THINGSPEAK FIELD NAME
+   ========================================================= */
+
+function getThingSpeakFieldName(
+    field
+) {
+
+    if (!channelInfo) {
+        return "";
+    }
+
+
+    const value =
+        channelInfo[
+            "field" + field
+        ];
+
+
+    if (
+        value !== null &&
+        value !== undefined
+    ) {
+
+        return String(value);
+
+    }
+
+
+    return "";
+
+}
+
+
+/* =========================================================
+   FIELD NAME
+   ========================================================= */
+
+function getFieldName(
+    field
+) {
+
+    const local =
+        channelSettings[
+            "field" + field
+        ];
+
+
+    if (
+        local &&
+        typeof local.name === "string" &&
+        local.name.trim() !== ""
+    ) {
+
+        return local.name.trim();
+
+    }
+
+
+    const thingSpeakName =
+        getThingSpeakFieldName(
+            field
+        );
+
+
+    if (
+        thingSpeakName &&
+        thingSpeakName.trim() !== ""
+    ) {
+
+        return thingSpeakName.trim();
+
+    }
+
+
+    return "FIELD " + field;
+
+}
+
+
+/* =========================================================
+   FIELD UNIT
+   ========================================================= */
+
+function getFieldUnit(
+    field
+) {
+
+    const local =
+        channelSettings[
+            "field" + field
+        ];
+
+
+    if (
+        local &&
+        typeof local.unit === "string" &&
+        local.unit.trim() !== ""
+    ) {
+
+        return local.unit.trim();
+
+    }
+
+
+    return "";
+
+}
+
+
+/* =========================================================
+   FIELD COLOR
+   ========================================================= */
+
+function getFieldColor(
+    field
+) {
+
+    return (
+        FIELD_COLORS[field] ||
+        "#d62020"
+    );
+
+}
+
+
+/* =========================================================
+   FIELD DROPDOWN
+   ========================================================= */
+
+function createFieldOptions() {
+
+    const currentValue =
+        fieldSelect.value;
+
+
+    fieldSelect.innerHTML = "";
+
+
+    for (
+        let field = 1;
+        field <= 4;
+        field++
+    ) {
+
+        const option =
+            document.createElement(
+                "option"
+            );
+
+
+        option.value =
+            String(field);
+
+
+        option.textContent =
+            getFieldName(field);
+
+
+        fieldSelect.appendChild(
+            option
+        );
+
+    }
+
+
+    if (
+        VALID_FIELDS.includes(
+            currentValue
+        )
+    ) {
+
+        fieldSelect.value =
+            currentValue;
+
+    }
+
+}
+
+
+/* =========================================================
+   LOAD FIELD/RANGE SELECTION
+   ========================================================= */
+
+function loadSelectionSettings() {
+
+    const params =
+        getUrlParameters();
+
+
+    const urlField =
+        params.get("field");
+
+
+    const urlRange =
+        params.get("range");
+
+
+    /*
+     * FIELD
+     */
+
+    if (
+        VALID_FIELDS.includes(
+            urlField
+        )
+    ) {
+
+        fieldSelect.value =
+            urlField;
+
+    }
+    else {
+
+        const savedField =
+            localStorage.getItem(
+                STORAGE_FIELD
+            );
+
+
+        if (
+            VALID_FIELDS.includes(
+                savedField
+            )
+        ) {
+
+            fieldSelect.value =
+                savedField;
+
+        }
+        else {
+
+            fieldSelect.value =
+                "1";
+
+        }
+
+    }
+
+
+    /*
+     * RANGE
+     */
+
+    if (
+        VALID_RANGES.includes(
+            urlRange
+        )
+    ) {
+
+        rangeSelect.value =
+            urlRange;
+
+    }
+    else {
+
+        const savedRange =
+            localStorage.getItem(
+                STORAGE_RANGE
+            );
+
+
+        if (
+            VALID_RANGES.includes(
+                savedRange
+            )
+        ) {
+
+            rangeSelect.value =
+                savedRange;
+
+        }
+        else {
+
+            rangeSelect.value =
+                "all";
+
+        }
+
+    }
+
+}
+
+
+/* =========================================================
+   SAVE FIELD/RANGE SELECTION
+   ========================================================= */
+
+function saveSelectionSettings() {
+
+    localStorage.setItem(
+        STORAGE_FIELD,
+        fieldSelect.value
+    );
+
+
+    localStorage.setItem(
+        STORAGE_RANGE,
+        rangeSelect.value
+    );
+
+
+    updateUrl();
+
+}
+
+
+/* =========================================================
+   THINGSPEAK FEEDS URL
+   ========================================================= */
+
+function buildFeedsUrl() {
+
+    const url =
+        new URL(
+            "https://api.thingspeak.com/channels/" +
+            channelId +
+            "/feeds.json"
+        );
+
+
+    url.searchParams.set(
+        "results",
+        MAX_RESULTS
+    );
+
+
+    switch (
+        rangeSelect.value
+    ) {
+
+        case "30d":
+
+            url.searchParams.set(
+                "days",
+                "30"
+            );
+
+            break;
+
+
+        case "10d":
+
+            url.searchParams.set(
+                "days",
+                "10"
+            );
+
+            break;
+
+
+        case "2d":
+
+            url.searchParams.set(
+                "days",
+                "2"
+            );
+
+            break;
+
+
+        case "1d":
+
+            url.searchParams.set(
+                "days",
+                "1"
+            );
+
+            break;
+
+    }
+
+
+    if (
+        READ_API_KEY !== ""
+    ) {
+
+        url.searchParams.set(
+            "api_key",
+            READ_API_KEY
+        );
+
+    }
+
+
+    return url.toString();
+
+}
+
+
+/* =========================================================
+   RANGE NAME
+   ========================================================= */
+
+function getRangeName() {
+
+    return (
+        RANGE_NAMES[
+            rangeSelect.value
+        ] ||
+        RANGE_NAMES.all
+    );
+
+}
+
+
+/* =========================================================
+   FIELD DATA
+   ========================================================= */
+
+function getFieldData(
+    field
+) {
+
+    const x = [];
+    const y = [];
+
+
+    const fieldName =
+        "field" + field;
+
+
+    for (
+        const row of allFeeds
+    ) {
+
+        const value =
+            row[fieldName];
+
+
+        if (
+            value === null ||
+            value === undefined ||
+            value === ""
+        ) {
+
+            continue;
+
+        }
+
+
+        const numberValue =
+            Number(value);
+
+
+        if (
+            Number.isNaN(
+                numberValue
+            )
+        ) {
+
+            continue;
+
+        }
+
+
+        const date =
+            new Date(
+                row.created_at
+            );
+
+
+        if (
+            Number.isNaN(
+                date.getTime()
+            )
+        ) {
+
+            continue;
+
+        }
+
+
+        x.push(date);
+
+        y.push(numberValue);
+
+    }
+
+
+    return {
+        x,
+        y
+    };
+
+}
+
+
+/* =========================================================
+   GRAPH TITLE SETTINGS
+   ========================================================= */
+
+function getGraphTitleSettings() {
+
+    const mobile =
+        window.innerWidth <= 600;
+
+
+    return {
+
+        x:
+            mobile
+                ? 0.02
+                : 0.5,
+
+        xanchor:
+            mobile
+                ? "left"
+                : "center"
+
+    };
+
+}
+
+
+/* =========================================================
+   RENDER GRAPH
+   ========================================================= */
+
+function renderGraph() {
+
+    if (
+        !allFeeds.length
+    ) {
+
+        statusElement.textContent =
+            "Žiadne dáta.";
+
+        return;
+
+    }
+
+
+    const field =
+        Number(
+            fieldSelect.value
+        );
+
+
+    const data =
+        getFieldData(field);
+
+
+    const name =
+        getFieldName(field);
+
+
+    const unit =
+        getFieldUnit(field);
+
+
+    const color =
+        getFieldColor(field);
+
+
+    const titleSettings =
+        getGraphTitleSettings();
+
+
+    /*
+     * Y axis title
+     */
+
+    let yTitle =
+        name;
+
+
+    if (unit) {
+
+        yTitle +=
+            " [" +
+            unit +
+            "]";
+
+    }
+
+
+    /*
+     * Hover text
+     */
+
+    let hover =
+        "<b>%{y}";
+
+
+    if (unit) {
+
+        hover +=
+            " " +
+            unit;
+
+    }
+
+
+    hover +=
+        "</b><br>" +
+        "%{x}" +
+        "<extra></extra>";
+
+
+    /*
+     * Plotly
+     */
+
+    Plotly.react(
+
+        graphElement,
+
+        [
+
+            {
+
+                type:
+                    //"scattergl", // WebGL technologia HW urychlovania, xtremne rychle, OK pre firefox, blbne v Chrome!
+                    "scatter",     // pomalsie ale univerzalnejsie, ok v Chrome
+
+                mode:
+                    "lines+markers",
+
+                x:
+                    data.x,
+
+                y:
+                    data.y,
+
+                line: {
+
+                    color:
+                        color,
+
+                    width:
+                        1.3
+
+                },
+
+                marker: {
+
+                    color:
+                        color,
+
+                    size:
+                        4
+
+                },
+
+                hovertemplate:
+                    hover
+
+            }
+
+        ],
+
+
+        {
+
+            title: {
+
+                text:
+                    name,
+
+                font: {
+
+                    size:
+                        window.innerWidth <= 600
+                            ? 16
+                            : 18
+
+                },
+
+                x:
+                    titleSettings.x,
+
+                xanchor:
+                    titleSettings.xanchor
+
+            },
+
+
+            margin: {
+
+                l:
+                    window.innerWidth <= 600
+                        ? 55
+                        : 65,
+
+                r: 15,
+
+                t:
+                    window.innerWidth <= 600
+                        ? 45
+                        : 50,
+
+                b:
+                    window.innerWidth <= 600
+                        ? 60
+                        : 65
+
+            },
+
+
+            hovermode:
+                "x unified",
+
+
+            xaxis: {
+
+                title:
+                    "Čas",
+
+                showgrid:
+                    true,
+
+                gridcolor:
+                    "#e5e5e5",
+
+                rangeslider: {
+
+                    visible:
+                        true
+
+                },
+
+                automargin:
+                    true
+
+            },
+
+
+            yaxis: {
+
+                title:
+                    yTitle,
+
+                showgrid:
+                    true,
+
+                gridcolor:
+                    "#e5e5e5",
+
+                automargin:
+                    true
+
+            },
+
+
+            plot_bgcolor:
+                "#ffffff",
+
+            paper_bgcolor:
+                "#ffffff"
+
+        },
+
+
+        {
+
+            responsive:
+                true,
+
+            scrollZoom:
+                true,
+
+            displaylogo:
+                false,
+
+            displayModeBar:
+                true,
+
+            modeBarButtonsToRemove: [
+
+                "lasso2d",
+
+                "select2d"
+
+            ]
+
+        }
+
+    );
+
+
+    statusElement.textContent =
+
+        "Channel " +
+        channelId +
+        " | " +
+        name +
+        " | " +
+        getRangeName() +
+        " | " +
+        data.y.length +
+        " bodov";
+
+}
+
+
+/* =========================================================
+   LOAD FEEDS
+   ========================================================= */
+
+async function loadFeeds() {
+
+    const requestId = ++feedsRequestId;
+
+    statusElement.textContent =
+        "Načítavam dáta...";
+
+    try {
+
+        loadSelectionSettings();
+
+        const response =
+            await fetch(
+                buildFeedsUrl(),
+                {
+                    cache: "no-store"
+                }
+            );
+
+        if (!response.ok) {
+
+            throw new Error(
+                "HTTP chyba " +
+                response.status
+            );
+
+        }
+
+        const json =
+            await response.json();
+
+        /*
+         * Ak medzitým začal novší request,
+         * tento výsledok už nepoužijeme.
+         */
+
+        if (requestId !== feedsRequestId) {
+            return;
+        }
+
+        if (
+            !json.channel ||
+            !json.channel.id
+        ) {
+
+            throw new Error(
+                "ThingSpeak nevrátil údaje o kanáli."
+            );
+
+        }
+
+        if (
+            !Array.isArray(json.feeds)
+        ) {
+
+            throw new Error(
+                "ThingSpeak nevrátil platné dáta."
+            );
+
+        }
+
+        channelInfo =
+            json.channel;
+
+        loadChannelSettings();
+
+        allFeeds =
+            json.feeds;
+
+        createFieldOptions();
+
+        loadSelectionSettings();
+
+        updateUrl();
+
+        renderGraph();
+
+    }
+
+    catch (error) {
+
+        /*
+         * Chybu starého requestu ignorujeme,
+         * ak už existuje novší request.
+         */
+
+        if (requestId !== feedsRequestId) {
+            return;
+        }
+
+        console.error(error);
+
+        statusElement.textContent =
+            "Chyba: " +
+            error.message;
+
+    }
+
+}
+
+/* =========================================================
+   SETUP SCREEN
+   ========================================================= */
+
+function showSetup() {
+
+    setupElement.style.display =
+        "flex";
+
+}
+
+
+function hideSetup() {
+
+    setupElement.style.display =
+        "none";
+
+}
+
+
+/* =========================================================
+   OPEN CHANNEL FROM SETUP
+   ========================================================= */
+
+function openSelectedChannel() {
+
+    const value =
+        channelInput.value.trim();
+
+
+    if (
+        !value ||
+        !/^\d+$/.test(value)
+    ) {
+
+        setupError.textContent =
+            "Zadajte platné Channel ID.";
+
+        return;
+
+    }
+
+
+    localStorage.setItem(
+        STORAGE_CHANNEL,
+        value
+    );
+
+
+    const url =
+        new URL(
+            window.location.href
+        );
+
+
+    url.searchParams.set(
+        "channel",
+        value
+    );
+
+
+    url.searchParams.set(
+        "field",
+        "1"
+    );
+
+
+    url.searchParams.set(
+        "range",
+        "all"
+    );
+
+
+    window.location.href =
+        url.toString();
+
+}
+
+
+openChannelButton.addEventListener(
+    "click",
+    openSelectedChannel
+);
+
+
+channelInput.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.key === "Enter"
+        ) {
+
+            openSelectedChannel();
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   SETTINGS - CREATE FIELD ROWS
+   ========================================================= */
+
+function createSettingsFields() {
+
+    fieldSettings.innerHTML = "";
+
+
+    for (
+        let field = 1;
+        field <= 4;
+        field++
+    ) {
+
+        const row =
+            document.createElement(
+                "div"
+            );
+
+
+        row.className =
+            "field-row";
+
+
+        const label =
+            document.createElement(
+                "label"
+            );
+
+
+        label.textContent =
+            "FIELD " + field;
+
+
+        const nameInput =
+            document.createElement(
+                "input"
+            );
+
+
+        nameInput.type =
+            "text";
+
+        nameInput.id =
+            "fieldName" + field;
+
+        nameInput.placeholder =
+            "Názov";
+
+
+        const unitInput =
+            document.createElement(
+                "input"
+            );
+
+
+        unitInput.type =
+            "text";
+
+        unitInput.id =
+            "fieldUnit" + field;
+
+        unitInput.placeholder =
+            "Jednotka";
+
+
+        row.appendChild(
+            label
+        );
+
+        row.appendChild(
+            nameInput
+        );
+
+        row.appendChild(
+            unitInput
+        );
+
+
+        fieldSettings.appendChild(
+            row
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   SETTINGS - OPEN
+   ========================================================= */
+
+function openSettings() {
+
+    settingsError.textContent =
+        "";
+
+
+    settingsChannel.value =
+        channelId || "";
+
+
+    loadChannelSettings();
+
+
+    for (
+        let field = 1;
+        field <= 4;
+        field++
+    ) {
+
+        const nameInput =
+            document.getElementById(
+                "fieldName" + field
+            );
+
+
+        const unitInput =
+            document.getElementById(
+                "fieldUnit" + field
+            );
+
+
+        const local =
+            channelSettings[
+                "field" + field
+            ];
+
+
+        const localName =
+            local?.name;
+
+
+        const localUnit =
+            local?.unit;
+
+
+        /*
+         * If a local name exists, use it.
+         * Otherwise show ThingSpeak name.
+         */
+
+        nameInput.value =
+            localName !== undefined
+                ? localName
+                : getThingSpeakFieldName(
+                    field
+                );
+
+
+        unitInput.value =
+            localUnit || "";
+
+    }
+
+
+    settingsOverlay.style.display =
+        "flex";
+
+}
+
+
+/* =========================================================
+   SETTINGS - CLOSE
+   ========================================================= */
+
+function closeSettingsWindow() {
+
+    settingsOverlay.style.display =
+        "none";
+
+}
+
+
+settingsButton.addEventListener(
+    "click",
+    openSettings
+);
+
+
+closeSettings.addEventListener(
+    "click",
+    closeSettingsWindow
+);
+
+
+cancelSettings.addEventListener(
+    "click",
+    closeSettingsWindow
+);
+
+
+/* =========================================================
+   SETTINGS - SAVE
+   ========================================================= */
+
+saveSettings.addEventListener(
+
+    "click",
+
+    () => {
+
+        const newChannel =
+            settingsChannel.value.trim();
+
+
+        if (
+            !newChannel ||
+            !/^\d+$/.test(
+                newChannel
+            )
+        ) {
+
+            settingsError.textContent =
+                "Zadajte platné Channel ID.";
+
+            return;
+
+        }
+
+
+        const settings = {};
+
+
+        for (
+            let field = 1;
+            field <= 4;
+            field++
+        ) {
+
+            const name =
+                document.getElementById(
+                    "fieldName" + field
+                ).value.trim();
+
+
+            const unit =
+                document.getElementById(
+                    "fieldUnit" + field
+                ).value.trim();
+
+
+            settings[
+                "field" + field
+            ] = {
+
+                name:
+                    name,
+
+                unit:
+                    unit
+
+            };
+
+        }
+
+
+        /*
+         * Settings belong to the selected Channel.
+         */
+
+        localStorage.setItem(
+
+            getChannelSettingsKey(
+                newChannel
+            ),
+
+            JSON.stringify(
+                settings
+            )
+
+        );
+
+
+        localStorage.setItem(
+            STORAGE_CHANNEL,
+            newChannel
+        );
+
+
+        /*
+         * Preserve FIELD and RANGE.
+         */
+
+        localStorage.setItem(
+            STORAGE_FIELD,
+            fieldSelect.value
+        );
+
+
+        localStorage.setItem(
+            STORAGE_RANGE,
+            rangeSelect.value
+        );
+
+
+        /*
+         * Open new Channel.
+         */
+
+        const url =
+            new URL(
+                window.location.href
+            );
+
+
+        url.searchParams.set(
+            "channel",
+            newChannel
+        );
+
+
+        url.searchParams.set(
+            "field",
+            fieldSelect.value
+        );
+
+
+        url.searchParams.set(
+            "range",
+            rangeSelect.value
+        );
+
+
+        window.location.href =
+            url.toString();
+
+    }
+
+);
+
+
+/* =========================================================
+   FIELD CHANGE
+   ========================================================= */
+
+fieldSelect.addEventListener(
+
+    "change",
+
+    () => {
+
+        saveSelectionSettings();
+
+        renderGraph();
+
+    }
+
+);
+
+
+/* =========================================================
+   RANGE CHANGE
+   ========================================================= */
+
+rangeSelect.addEventListener(
+
+    "change",
+
+    () => {
+
+        saveSelectionSettings();
+
+        loadFeeds();
+
+    }
+
+);
+
+
+/* =========================================================
+   CLICK OUTSIDE SETTINGS
+   ========================================================= */
+
+settingsOverlay.addEventListener(
+
+    "click",
+
+    event => {
+
+        if (
+            event.target ===
+            settingsOverlay
+        ) {
+
+            closeSettingsWindow();
+
+        }
+
+    }
+
+);
+
+
+/* =========================================================
+   ESC
+   ========================================================= */
+
+document.addEventListener(
+
+    "keydown",
+
+    event => {
+
+        if (
+            event.key === "Escape"
+        ) {
+
+            closeSettingsWindow();
+
+        }
+
+    }
+
+);
+
+
+/* =========================================================
+   RESIZE
+   ========================================================= */
+
+let resizeTimer = null;
+
+
+window.addEventListener(
+
+    "resize",
+
+    () => {
+
+        clearTimeout(
+            resizeTimer
+        );
+
+
+        resizeTimer =
+            setTimeout(
+
+                () => {
+
+                    if (
+                        graphElement.data
+                    ) {
+
+                        const title =
+                            getGraphTitleSettings();
+
+
+                        Plotly.relayout(
+
+                            graphElement,
+
+                            {
+
+                                "title.x":
+                                    title.x,
+
+                                "title.xanchor":
+                                    title.xanchor,
+
+                                "title.font.size":
+                                    window.innerWidth <= 600
+                                        ? 16
+                                        : 18
+
+                            }
+
+                        );
+
+                    }
+
+                },
+
+                100
+
+            );
+
+    }
+
+);
+
+
+/* =========================================================
+   SERVICE WORKER
+   ========================================================= */
+
+/*
+ * Service Worker funguje iba cez HTTP/HTTPS.
+ *
+ * Pri otvorení:
+ *
+ *     file:///.../index.html
+ *
+ * sa registrácia úplne preskočí.
+ */
+
+if (
+
+    "serviceWorker" in navigator &&
+
+    (
+        location.protocol === "http:" ||
+        location.protocol === "https:"
+    )
+
+) {
+
+    window.addEventListener(
+
+        "load",
+
+        () => {
+
+            navigator.serviceWorker
+                .register("./sw.js")
+                .catch(
+                    error => {
+
+                        console.error(
+                            "Service Worker:",
+                            error
+                        );
+
+                    }
+                );
+
+        }
+
+    );
+
+}
+
+/* =========================================================
+   APPLICATION
+   ========================================================= */
+
+async function loadApplication() {
+
+    /*
+     * Najprv zistíme Channel:
+     *
+     * 1. channel z URL
+     * 2. channel z localStorage
+     * 3. ak nie je ani jedno, zobrazíme Setup
+     */
+
+    if (!determineChannel()) {
+
+        showSetup();
+
+        return;
+
+    }
+
+    /*
+     * Channel máme.
+     */
+
+    hideSetup();
+
+    /*
+     * Najprv načítame uložený FIELD a RANGE.
+     * Až potom sa vytvorí URL pre ThingSpeak.
+     *
+     * Inak by prvý request išiel s defaultným
+     * rozsahom "all".
+     */
+    loadSelectionSettings();
+
+    statusElement.textContent =
+        "Načítavam Channel " +
+        channelId +
+        "...";
+
+    /*
+     * Načítanie Channel informácií
+     * a meraní.
+     */
+
+    await loadFeeds();
+
+}
+
+/* =========================================================
+   INITIALIZATION
+   ========================================================= */
+
+createSettingsFields();
+
+loadApplication();
+
+
+/* =========================================================
+   AUTOMATIC REFRESH
+   ========================================================= */
+
+setInterval(
+
+    () => {
+
+        if (
+            channelId
+        ) {
+
+            loadFeeds();
+
+        }
+
+    },
+
+    REFRESH_INTERVAL
+
+);
+
+</script>
+</body>
+</html>

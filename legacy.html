@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
+
+<title>Meteostanica</title>
+
+<link rel="stylesheet" href="legacy.css">
+
+</head>
+
+<body>
+
+<h2>Meteostanica</h2>
+
+<form id="legacyForm">
+
+    <label>Channel ID</label>
+
+    <input
+        id="channel"
+        type="text"
+    >
+
+    <label>Graf</label>
+
+    <select id="field">
+        <option value="1">FIELD 1</option>
+        <option value="2">FIELD 2</option>
+        <option value="3">FIELD 3</option>
+        <option value="4">FIELD 4</option>
+    </select>
+
+    <label>Rozsah</label>
+
+    <select id="range">
+        <option value="60">60 bodov</option>
+        <option value="100">100 bodov</option>
+        <option value="200">200 bodov</option>
+        <option value="500">500 bodov</option>
+    </select>
+
+    <button type="submit">
+        Zobraziť graf
+    </button>
+
+</form>
+
+<script>
+(function () {
+
+    var params =
+        new URLSearchParams(
+            window.location.search
+        );
+
+    var channel =
+        params.get("channel");
+
+    var field =
+        params.get("field") || "1";
+
+    var range =
+        params.get("range") || "60";
+
+
+    if (channel) {
+
+        document.getElementById(
+            "channel"
+        ).value = channel;
+
+    }
+
+
+    document.getElementById(
+        "field"
+    ).value = field;
+
+
+    document.getElementById(
+        "range"
+    ).value = range;
+
+
+    document.getElementById(
+        "legacyForm"
+    ).onsubmit = function () {
+
+        var id =
+            document.getElementById(
+                "channel"
+            ).value;
+
+        var f =
+            document.getElementById(
+                "field"
+            ).value;
+
+        var r =
+            document.getElementById(
+                "range"
+            ).value;
+
+
+        if (!/^[0-9]+$/.test(id)) {
+
+            alert(
+                "Zadajte platné Channel ID."
+            );
+
+            return false;
+
+        }
+
+
+        var url =
+            "https://thingspeak.mathworks.com/channels/" +
+            id +
+            "/charts/" +
+            f +
+            "?results=" +
+            r +
+            "&type=line";
+
+
+        window.location.href = url;
+
+        return false;
+
+    };
+
+})();
+</script>
+
+</body>
+</html>
