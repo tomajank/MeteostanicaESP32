@@ -1,0 +1,1 @@
+# Git nevie uchovávať prázdne priečinky. Preto musí byť v upload aspoň jeden súbor.
